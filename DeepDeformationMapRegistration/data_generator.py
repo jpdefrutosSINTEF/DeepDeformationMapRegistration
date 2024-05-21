@@ -796,13 +796,13 @@ class DataGeneratorAugment(DataGeneratorManager):
 
 def tf_graph_deform():
     # Place holders
-    fix_img = tf.placeholder(tf.float32, [128]*3, 'fix_img')
-    fix_segmentations = tf.placeholder_with_default(np.zeros([128]*3), shape=[128]*3, name='fix_segmentations')
-    max_deformation = tf.placeholder(tf.float32, shape=(), name='max_deformation')
-    max_displacement = tf.placeholder(tf.float32, shape=(), name='max_displacement')
-    max_rotation = tf.placeholder(tf.float32, shape=(), name='max_rotation')
-    num_moved_points = tf.placeholder_with_default(50, shape=(), name='num_moved_points')
-    only_image = tf.placeholder_with_default(True, shape=(), name='only_image')
+    fix_img = tf.compat.v1.placeholder(tf.float32, [128]*3, 'fix_img')
+    fix_segmentations = tf.compat.v1.placeholder_with_default(np.zeros([128]*3), shape=[128]*3, name='fix_segmentations')
+    max_deformation = tf.compat.v1.placeholder(tf.float32, shape=(), name='max_deformation')
+    max_displacement = tf.compat.v1.placeholder(tf.float32, shape=(), name='max_displacement')
+    max_rotation = tf.compat.v1.placeholder(tf.float32, shape=(), name='max_rotation')
+    num_moved_points = tf.compat.v1.placeholder_with_default(50, shape=(), name='num_moved_points')
+    only_image = tf.compat.v1.placeholder_with_default(True, shape=(), name='only_image')
 
     search_voxels = tf.cond(only_image,
                             lambda: fix_img,
@@ -811,7 +811,7 @@ def tf_graph_deform():
     # Apply TPS deformation
     # Get points in the segmentation or image, and add it to the control grid and target grid
     # Indices of the points in the seaerch image with intensity greater than 0  (It would be bad if we only move the bg)
-    idx_points_in_label = tf.where(tf.greater(search_voxels, 0.0))
+    idx_points_in_label = tf.compat.v1.where(tf.greater(search_voxels, 0.0))
 
     # Randomly select one of the points
     random_idx = tf.random.uniform((num_moved_points,), minval=0, maxval=tf.shape(idx_points_in_label)[0], dtype=tf.int32)

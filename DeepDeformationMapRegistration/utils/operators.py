@@ -16,14 +16,14 @@ def soft_threshold(x, threshold, name='soft_threshold'):
     # Foucart S., Rauhut H. (2013) Basic Algorithms. In: A Mathematical Introduction to Compressive Sensing.
     #   Applied and Numerical Harmonic Analysis. Birkhäuser, New York, NY. https://doi.org/10.1007/978-0-8176-4948-7_3
     #   Chapter 3, page 72
-    with tf.name_scope(name):
+    with tf.compat.v1.name_scope(name):
         x = tf.convert_to_tensor(x, name='x')
         threshold = tf.convert_to_tensor(threshold, dtype=x.dtype, name='threshold')
         return tf.sign(x) * tf.maximum(tf.abs(x) - threshold, 0.)
 
 
 def hard_threshold(x, threshold, name='hard_threshold'):
-    with tf.name_scope(name):
+    with tf.compat.v1.name_scope(name):
         threshold = tf.convert_to_tensor(threshold, dtype=x.dtype, name='threshold')
         return tf.sign(tf.maximum(tf.abs(x) - threshold, 0.))
 
@@ -31,7 +31,7 @@ def hard_threshold(x, threshold, name='hard_threshold'):
 def binary_activation(x):
     # https://stackoverflow.com/questions/37743574/hard-limiting-threshold-activation-function-in-tensorflow
     cond = tf.less(x, tf.zeros(tf.shape(x)))
-    out = tf.where(cond, tf.zeros(tf.shape(x)), tf.ones(tf.shape(x)))
+    out = tf.compat.v1.where(cond, tf.zeros(tf.shape(x)), tf.ones(tf.shape(x)))
 
     return out
 
@@ -59,7 +59,7 @@ def gaussian_kernel(kernel_size, sigma, in_ch, out_ch, dim, dtype=tf.float32):
 
 def sample_unique(population, samples, tout=tf.int32):
     # src: https://github.com/tensorflow/tensorflow/issues/9260#issuecomment-437875125
-    z = -tf.log(-tf.log(tf.random_uniform((tf.shape(population)[0],), 0, 1)))
+    z = -tf.math.log(-tf.math.log(tf.random.uniform((tf.shape(population)[0],), 0, 1)))
     _, indices = tf.nn.top_k(z, samples)
     ret_val = tf.gather(population, indices)
     return tf.cast(ret_val, tout)

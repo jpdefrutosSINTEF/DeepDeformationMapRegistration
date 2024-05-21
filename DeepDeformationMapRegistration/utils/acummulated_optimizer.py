@@ -143,21 +143,21 @@ class AdamAccumulated(OptimizerV2):
         beta_2_power = math_ops.pow(beta_2_t, local_step)
         epsilon_t = ops.convert_to_tensor(self.epsilon, var_dtype)
         lr = (lr_t * math_ops.sqrt(1 - beta_2_power) / (1 - beta_1_power))
-        lr = tf.where(update_cond, lr, 0.0)
+        lr = tf.compat.v1.where(update_cond, lr, 0.0)
 
         g = self.get_slot(var, 'g')
         g_a = grad / math_ops.cast(accumulation_steps, var_dtype)
-        g_t = tf.where(tf.equal(sub_step, 1),
+        g_t = tf.compat.v1.where(tf.equal(sub_step, 1),
                        g_a,
                        g + (g_a - g) / math_ops.cast(sub_step, var_dtype))
         g_t = state_ops.assign(g, g_t, use_locking=self._use_locking)
 
         m = self.get_slot(var, 'm')
-        m_t = tf.where(update_cond, m * beta_1_t + g_t * (1 - beta_1_t), m)
+        m_t = tf.compat.v1.where(update_cond, m * beta_1_t + g_t * (1 - beta_1_t), m)
         m_t = state_ops.assign(m, m_t, use_locking=self._use_locking)
 
         v = self.get_slot(var, 'v')
-        v_t = tf.where(update_cond, v * beta_2_t + (g_t * g_t) * (1 - beta_2_t), v)
+        v_t = tf.compat.v1.where(update_cond, v * beta_2_t + (g_t * g_t) * (1 - beta_2_t), v)
         v_t = state_ops.assign(v, v_t, use_locking=self._use_locking)
 
         if not self.amsgrad:
@@ -167,7 +167,7 @@ class AdamAccumulated(OptimizerV2):
             return control_flow_ops.group(*[var_update, m_t, v_t])
         else:
             v_hat = self.get_slot(var, 'vhat')
-            v_hat_t = tf.where(update_cond, math_ops.maximum(v_hat, v_t), v_hat)
+            v_hat_t = tf.compat.v1.where(update_cond, math_ops.maximum(v_hat, v_t), v_hat)
             with ops.control_dependencies([v_hat_t]):
                 v_hat_t = state_ops.assign(
                         v_hat, v_hat_t, use_locking=self._use_locking)

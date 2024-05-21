@@ -148,7 +148,7 @@ def _solve_interpolation(
     f = train_values
 
     # Next, construct the linear system.
-    with tf.name_scope("construct_linear_system"):
+    with tf.compat.v1.name_scope("construct_linear_system"):
 
         matrix_a = _phi(_pairwise_squared_distance_matrix(c), order)  # [b, n, n]
         if regularization_weight > 0:
@@ -172,7 +172,7 @@ def _solve_interpolation(
         rhs = tf.concat([f, rhs_zeros], 1)  # [b, n + d + 1, k]
 
     # Then, solve the linear system and unpack the results.
-    with tf.name_scope("solve_linear_system"):
+    with tf.compat.v1.name_scope("solve_linear_system"):
         w_v = tf.linalg.solve(lhs, rhs)
         w = w_v[:, :n, :]
         v = w_v[:, n:, :]
@@ -230,7 +230,7 @@ def _phi(r: FloatTensorLike, order: int) -> FloatTensorLike:
 
     # using EPSILON prevents log(0), sqrt0), etc.
     # sqrt(0) is well-defined, but its gradient is not
-    with tf.name_scope("phi"):
+    with tf.compat.v1.name_scope("phi"):
         if order == 1:
             r = tf.maximum(r, EPSILON)
             r = tf.sqrt(r)
@@ -302,19 +302,19 @@ def interpolate_spline(
       the values of the interpolant evaluated at the locations specified in
       query_points.
     """
-    with tf.name_scope(name or "interpolate_spline"):
+    with tf.compat.v1.name_scope(name or "interpolate_spline"):
         train_points = tf.convert_to_tensor(train_points)
         train_values = tf.convert_to_tensor(train_values)
         query_points = tf.convert_to_tensor(query_points)
 
         # First, fit the spline to the observed data.
-        with tf.name_scope("solve"):
+        with tf.compat.v1.name_scope("solve"):
             w, v = _solve_interpolation(
                 train_points, train_values, order, regularization_weight
             )
 
         # Then, evaluate the spline at the query locations.
-        with tf.name_scope("predict"):
+        with tf.compat.v1.name_scope("predict"):
             query_values = _apply_interpolation(query_points, train_points, w, v, order)
 
     return query_values

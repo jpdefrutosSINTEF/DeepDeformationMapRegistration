@@ -65,13 +65,13 @@ class UncertaintyWeighting(kl.Layer):
 
     def build(self, input_shape=None):
         self.log_loss_vars = self.add_weight(name='loss_log_vars', shape=(self.num_loss,),
-                                             initializer=tf.keras.initializers.Constant(self.prior_loss_w),
+                                             initializer=tf.compat.v1.keras.initializers.Constant(self.prior_loss_w),
                                              trainable=True)
         self.loss_weights = tf.math.softmax(self.log_loss_vars, name='SM_loss_weights')
 
         if self.num_reg != 0:
             self.log_reg_vars = self.add_weight(name='loss_reg_vars', shape=(self.num_reg,),
-                                                initializer=tf.keras.initializers.Constant(self.prior_reg_w),
+                                                initializer=tf.compat.v1.keras.initializers.Constant(self.prior_reg_w),
                                                 trainable=True)
             if self.num_reg == 1:
                 self.reg_weights = tf.math.exp(self.log_reg_vars, name='EXP_reg_weights')
@@ -150,14 +150,14 @@ def volume_to_ov_and_dm(in_volume: tf.Tensor):
     # This one is run as a preprocessing step
     def get_ov_projections_and_dm(volume):
         # tf.sign returns -1, 0, 1 depending on the sign of the elements of the input (negative, zero, positive)
-        i, j, k, c = tf.where(volume > 0.0)
+        i, j, k, c = tf.compat.v1.where(volume > 0.0)
         top = tf.sign(tf.reduce_sum(volume, axis=0), name='ov_top')
         right = tf.sign(tf.reduce_sum(volume, axis=1), name='ov_right')
         front = tf.sign(tf.reduce_sum(volume, axis=2), name='ov_front')
 
-        top_p, top_n = tf.py_func(distance_map, [j, k, i], tf.float32)
-        right_p, right_n = tf.py_func(distance_map, [i, k, j], tf.float32)
-        front_p, front_n = tf.py_func(distance_map, [i, j, k], tf.float32)
+        top_p, top_n = tf.compat.v1.py_func(distance_map, [j, k, i], tf.float32)
+        right_p, right_n = tf.compat.v1.py_func(distance_map, [i, k, j], tf.float32)
+        front_p, front_n = tf.compat.v1.py_func(distance_map, [i, j, k], tf.float32)
 
         return [front, right, top], [front_p, front_n, top_p, top_n, right_p, right_n]
 

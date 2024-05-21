@@ -227,10 +227,10 @@ class GaussianFilter:
         g_1d = tf.math.exp(-1.0 * tf.pow(range_1d, 2) / (2. * tf.pow(self.sigma, 2)))
         g_1d_expanded = tf.expand_dims(g_1d, -1)
         iterator = tf.constant(1)
-        self.__GF = tf.while_loop(lambda iterator, g_1d: tf.less(iterator, self.dim),
-                                  lambda iterator, g_1d: (iterator + 1, tf.expand_dims(g_1d, -1) * tf.transpose(g_1d_expanded)),
-                                  [iterator, g_1d],
-                                  [iterator.get_shape(), tf.TensorShape(None)],  # Shape invariants
+        self.__GF = tf.while_loop(cond=lambda iterator, g_1d: tf.less(iterator, self.dim),
+                                  body=lambda iterator, g_1d: (iterator + 1, tf.expand_dims(g_1d, -1) * tf.transpose(g_1d_expanded)),
+                                  loop_vars=[iterator, g_1d],
+                                  shape_invariants=[iterator.get_shape(), tf.TensorShape(None)],  # Shape invariants
                                   back_prop=False
                                   )[-1]
 

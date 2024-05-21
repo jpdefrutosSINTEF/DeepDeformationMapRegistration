@@ -104,7 +104,7 @@ def orthographicProjection_to_matrix(top: np.ndarray, front: np.ndarray, right: 
 
 def _plot_2d(sample: np.ndarray, ax=None, c=None, name=None):
     if isinstance(sample, tf.Tensor):
-        sample = sample.eval(session=tf.Session())
+        sample = sample.eval(session=tf.compat.v1.Session())
 
     x_range = list()
     y_range = list()
@@ -135,7 +135,7 @@ def _plot_2d(sample: np.ndarray, ax=None, c=None, name=None):
 def _plot_3d(sample: np.ndarray, ax=None, c=None, name=None):
     from mpl_toolkits.mplot3d import Axes3D
     if isinstance(sample, tf.Tensor):
-        sample = sample.eval(session=tf.Session())
+        sample = sample.eval(session=tf.compat.v1.Session())
 
     x_range = list()
     y_range = list()

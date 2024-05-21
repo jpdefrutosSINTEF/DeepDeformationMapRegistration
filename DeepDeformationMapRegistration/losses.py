@@ -41,7 +41,7 @@ class HausdorffDistanceErosion:
     def _erode(self, in_tensor):
         indiv_channels = tf.split(in_tensor, self.im_shape[-1], -1)
         res = list()
-        with tf.compat.v1.variable_scope('erode', reuse=tf.AUTO_REUSE):
+        with tf.compat.v1.variable_scope('erode', reuse=tf.compat.v1.AUTO_REUSE):
             for ch in indiv_channels:
                 res.append(self.conv(tf.expand_dims(ch, 0), self.kernel, [1] * (self.ndims + 2), 'SAME'))
         # out = -tf.nn.max_pool3d(-tf.expand_dims(in_tensor, 0), [3]*self.ndims, [1]*self.ndims, 'SAME', name='HDE_erosion')
@@ -208,7 +208,7 @@ class WeightedHausdorffDistance:
             return self.hausdorff_per_channel(y_true, y_pred)
 
     def hausdorff_per_channel(self, y_true, y_pred):
-        Y = tf.cast(tf.where(y_true > self.threshold), dtype=tf.float32)
+        Y = tf.cast(tf.compat.v1.where(y_true > self.threshold), dtype=tf.float32)
         p = K.flatten(y_pred)   # Flatten the predicted segmentation (activation map 'p' in d_WH)
 
         size_Y = tf.shape(Y)[0]
@@ -317,7 +317,7 @@ class StructuralSimilarity:
         self.patch_extractor = None
         self.reduce_axis = list()
         if dim == 2:
-            self.patch_extractor = tf.extract_image_patches
+            self.patch_extractor = tf.image.extract_patches
             self.reduce_axis = [1, 2]
         elif dim == 3:
             self.patch_extractor = tf.extract_volume_patches
@@ -417,7 +417,7 @@ class StructuralSimilarity_simplified:
         self.dim = dim
         self.patch_extractor = None
         if dim == 2:
-            self.patch_extractor = tf.extract_image_patches
+            self.patch_extractor = tf.image.extract_patches
         elif dim == 3:
             self.patch_extractor = tf.extract_volume_patches
 
@@ -515,10 +515,10 @@ class MultiScaleStructuralSimilarity(StructuralSimilarity):
     def ms_ssim(self, y_true, y_pred):
         cs_prod = tf.constant(1.)
         scale_level = tf.constant(1.)
-        cs_prod, *_ = tf.while_loop(self._cond,
-                                    self._iteration,
-                                    (cs_prod, scale_level, y_true, y_pred),
-                                    (cs_prod.get_shape(), scale_level.get_shape(),
+        cs_prod, *_ = tf.while_loop(cond=self._cond,
+                                    body=self._iteration,
+                                    loop_vars=(cs_prod, scale_level, y_true, y_pred),
+                                    shape_invariants=(cs_prod.get_shape(), scale_level.get_shape(),
                                      tf.TensorShape(([1] + [None] * self.dim + [1])),
                                      tf.TensorShape(([1] + [None] * self.dim + [1]))))
 
@@ -575,10 +575,10 @@ class MultiScaleStructuralSimilarity_v2(StructuralSimilarity):
     def ms_ssim(self, y_true, y_pred):
         cs_prod = tf.constant(1.)
         scale_level = tf.constant(1.)
-        cs_prod, *_ = tf.while_loop(self._cond,
-                                    self._iteration,
-                                    (cs_prod, scale_level, y_true, y_pred),
-                                    (cs_prod.get_shape(), scale_level.get_shape(),
+        cs_prod, *_ = tf.while_loop(cond=self._cond,
+                                    body=self._iteration,
+                                    loop_vars=(cs_prod, scale_level, y_true, y_pred),
+                                    shape_invariants=(cs_prod.get_shape(), scale_level.get_shape(),
                                      tf.TensorShape(([1] + [None] * self.dim + [1])),
                                      tf.TensorShape(([1] + [None] * self.dim + [1]))))
 
@@ -623,10 +623,10 @@ class StructuralSimilarityGaussian:
         g_1d = tf.math.exp(-1.0 * tf.pow(range_1d, 2) / (2. * tf.pow(sigma, 2)))
         g_1d_expanded = tf.expand_dims(g_1d, -1)
         iterator = tf.constant(1)
-        self.__GF = tf.while_loop(lambda iterator, g_1d: tf.less(iterator, self.dim),
-                                  lambda iterator, g_1d: (iterator + 1, tf.expand_dims(g_1d, -1) * tf.transpose(g_1d_expanded)),
-                                  [iterator, g_1d],
-                                  [iterator.get_shape(), tf.TensorShape([None]*self.dim)],  # Shape invariants
+        self.__GF = tf.while_loop(cond=lambda iterator, g_1d: tf.less(iterator, self.dim),
+                                  body=lambda iterator, g_1d: (iterator + 1, tf.expand_dims(g_1d, -1) * tf.transpose(g_1d_expanded)),
+                                  loop_vars=[iterator, g_1d],
+                                  shape_invariants=[iterator.get_shape(), tf.TensorShape([None]*self.dim)],  # Shape invariants
                                   back_prop=False,
                                   )[-1]
 
@@ -710,17 +710,17 @@ class MultiScaleStructuralSimilarityGaussian(StructuralSimilarityGaussian):
         scale_level += 1
 
         # Downsample the images to half the resolution for the next iteration
-        y_true = tf.nn.avg_pool(y_true, [1] + [2]*self.dim + [1], [1] + [2]*self.dim + [1], 'SAME')
-        y_pred = tf.nn.avg_pool(y_true, [1] + [2]*self.dim + [1], [1] + [2]*self.dim + [1], 'SAME')
+        y_true = tf.nn.avg_pool2d(input=y_true, ksize=[1] + [2]*self.dim + [1], strides=[1] + [2]*self.dim + [1], padding='SAME')
+        y_pred = tf.nn.avg_pool2d(input=y_true, ksize=[1] + [2]*self.dim + [1], strides=[1] + [2]*self.dim + [1], padding='SAME')
         return cs_prod, scale_level, y_true, y_pred
 
     def ms_ssim(self, y_true, y_pred):
         scale_level = tf.constant(0.)
         cs_prod = tf.constant(1.)
-        cs_prod, *_ = tf.while_loop(tf.less(scale_level, self.__num_scales),
-                                    self._iteration,
-                                    (cs_prod, scale_level, y_true, y_pred),
-                                    (cs_prod.get_shape(), scale_level.get_shape(),
+        cs_prod, *_ = tf.while_loop(cond=tf.less(scale_level, self.__num_scales),
+                                    body=self._iteration,
+                                    loop_vars=(cs_prod, scale_level, y_true, y_pred),
+                                    shape_invariants=(cs_prod.get_shape(), scale_level.get_shape(),
                                      tf.TensorShape(([1] + [None]*self.dim + [1])),
                                      tf.TensorShape(([1] + [None]*self.dim + [1]))))
         # L is taken from the last scale
@@ -742,7 +742,7 @@ class DICEScore:
     def dice(self, y_true, y_pred):
         numerator = 2 * tf.reduce_sum(y_true * y_pred, self.axes)
         denominator = tf.reduce_sum(y_true + y_pred, self.axes)
-        return tf.reduce_mean(tf.div_no_nan(numerator, denominator))
+        return tf.reduce_mean(tf.math.divide_no_nan(numerator, denominator))
 
     @function_decorator('DICE__loss')
     def loss(self, y_true, y_pred):
@@ -803,7 +803,7 @@ class GeneralizedDICEScore:
         w = tf.math.divide_no_nan(1., tf.pow(size_y_true, 2), name='GDICE_weight')
         numerator = w * tf.reduce_sum(y_true * y_pred, axis=1)
         denominator = w * (size_y_true + size_y_pred)
-        return tf.div_no_nan(2 * tf.reduce_sum(numerator, axis=-1) + self.smooth, tf.reduce_sum(denominator, axis=-1) + self.smooth)
+        return tf.math.divide_no_nan(2 * tf.reduce_sum(numerator, axis=-1) + self.smooth, tf.reduce_sum(denominator, axis=-1) + self.smooth)
 
     def macro_dice(self, y_true, y_pred):
         # y_true = [B, -1, L]
@@ -818,7 +818,7 @@ class GeneralizedDICEScore:
         size_y_pred = tf.reduce_sum(y_pred, axis=1, name='GDICE_size_y_pred')
         numerator = tf.reduce_sum(y_true * y_pred, axis=1)
         denominator = (size_y_true + size_y_pred)
-        return tf.div_no_nan(2 * numerator + self.smooth, denominator + self.smooth)
+        return tf.math.divide_no_nan(2 * numerator + self.smooth, denominator + self.smooth)
 
     @function_decorator('GeneralizeDICE__loss')
     def loss(self, y_true, y_pred):

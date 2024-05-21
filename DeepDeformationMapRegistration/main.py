@@ -239,9 +239,6 @@ def main():
     config.log_device_placement = False  ## to log device placement (on which device the operation ran)
     config.allow_soft_placement = True
 
-    sess = tf.compat.v1.Session(config=config)
-    tf.compat.v1.keras.backend.set_session(sess)
-
     # Preprocess data
     # 1. Run Livermask to get the mask around the liver in both the fixed and moving image
     LOGGER.info('Getting ROI')
@@ -283,66 +280,66 @@ def main():
 
     network, registration_model = load_model(MODEL_FILE, False, True)
     spatialtransformer_model = tf.keras.models.load_model(ST_MODEL_FILE,
-                                                          custom_objects={'SpatialTransformer': SpatialTransformer})
+                                                          custom_objects={'Custom>SpatialTransformer': SpatialTransformer})
 
     LOGGER.info('Computing registration')
-    with sess.as_default():
+
+    if args.debug:
+        registration_model.summary(line_length=C.SUMMARY_LINE_LENGTH)
+    LOGGER.info('Computing displacement map...')
+    time_disp_map_start = time.time()
+    p, disp_map = network.predict([moving_image[np.newaxis, ...], fixed_image[np.newaxis, ...]])
+    time_disp_map_end = time.time()
+    LOGGER.info(f'\t... done ({time_disp_map_end - time_disp_map_start})')
+    disp_map = np.squeeze(disp_map)
+    debug_save_image(np.squeeze(disp_map), 'disp_map_0_raw', args.outputdir, args.debug)
+    debug_save_image(p[0, ...], 'img_4_net_pred_image', args.outputdir, args.debug)
+
+    LOGGER.info('Applying displacement map...')
+    time_pred_img_start = time.time()
+    pred_image = spatialtransformer_model.predict([moving_image[np.newaxis, ...], disp_map[np.newaxis, ...]])
+    time_pred_img_end = time.time()
+    LOGGER.info(f'\t... done ({time_pred_img_end - time_pred_img_start} s)')
+    pred_image = pred_image[0, ...]
+
+    if args.original_resolution:
+        LOGGER.info('Scaling predicted image...')
+        moving_image = moving_image_or
+        fixed_image = fixed_image_or
+        # disp_map = disp_map_or
+        pred_image = zoom(pred_image, 1 / zoom_factors)
+        pred_image = pad_crop_to_original_shape(pred_image, fixed_image_or.shape, crop_min)
+        pred_image = np.squeeze(pred_image, axis=-1)
+        LOGGER.info('Done...')
+
+    if args.original_resolution:
+        save_nifti(pred_image, os.path.join(args.outputdir, 'pred_image.nii.gz'), header=moving_image_header)
+    else:
+        save_nifti(pred_image, os.path.join(args.outputdir, 'pred_image.nii.gz'))
+        save_nifti(fixed_image, os.path.join(args.outputdir, 'fixed_image.nii.gz'))
+        save_nifti(moving_image, os.path.join(args.outputdir, 'moving_image.nii.gz'))
+
+    if args.save_displacement_map or args.debug:
+        if args.original_resolution:
+            # Up sample the displacement map to the full res
+            LOGGER.info('Scaling displacement map...')
+            trf = np.eye(4)
+            np.fill_diagonal(trf, 1 / zoom_factors)
+            disp_map = resize_displacement_map(disp_map, None, trf, moving_image_header.get_zooms())
+            debug_save_image(disp_map, 'disp_map_1_upsampled', args.outputdir, args.debug)
+            disp_map = pad_displacement_map(disp_map, crop_min, crop_max, image_shape_or)
+            debug_save_image(np.squeeze(disp_map), 'disp_map_2_padded', args.outputdir, args.debug)
+            disp_map = gaussian_filter(disp_map, 5)
+            debug_save_image(np.squeeze(disp_map), 'disp_map_3_smoothed', args.outputdir, args.debug)
+            LOGGER.info('\t... done')
         if args.debug:
-            registration_model.summary(line_length=C.SUMMARY_LINE_LENGTH)
-        LOGGER.info('Computing displacement map...')
-        time_disp_map_start = time.time()
-        p, disp_map = network.predict([moving_image[np.newaxis, ...], fixed_image[np.newaxis, ...]])
-        time_disp_map_end = time.time()
-        LOGGER.info(f'\t... done ({time_disp_map_end - time_disp_map_start})')
-        disp_map = np.squeeze(disp_map)
-        debug_save_image(np.squeeze(disp_map), 'disp_map_0_raw', args.outputdir, args.debug)
-        debug_save_image(p[0, ...], 'img_4_net_pred_image', args.outputdir, args.debug)
-
-        LOGGER.info('Applying displacement map...')
-        time_pred_img_start = time.time()
-        pred_image = spatialtransformer_model.predict([moving_image[np.newaxis, ...], disp_map[np.newaxis, ...]])
-        time_pred_img_end = time.time()
-        LOGGER.info(f'\t... done ({time_pred_img_end - time_pred_img_start} s)')
-        pred_image = pred_image[0, ...]
-
-        if args.original_resolution:
-            LOGGER.info('Scaling predicted image...')
-            moving_image = moving_image_or
-            fixed_image = fixed_image_or
-            # disp_map = disp_map_or
-            pred_image = zoom(pred_image, 1 / zoom_factors)
-            pred_image = pad_crop_to_original_shape(pred_image, fixed_image_or.shape, crop_min)
-            pred_image = np.squeeze(pred_image, axis=-1)
-            LOGGER.info('Done...')
-
-        if args.original_resolution:
-            save_nifti(pred_image, os.path.join(args.outputdir, 'pred_image.nii.gz'), header=moving_image_header)
+            np.savez_compressed(os.path.join(args.outputdir, 'displacement_map.npz'), disp_map)
         else:
-            save_nifti(pred_image, os.path.join(args.outputdir, 'pred_image.nii.gz'))
-            save_nifti(fixed_image, os.path.join(args.outputdir, 'fixed_image.nii.gz'))
-            save_nifti(moving_image, os.path.join(args.outputdir, 'moving_image.nii.gz'))
+            np.savez_compressed(os.path.join(os.path.join(args.outputdir, 'debug'), 'displacement_map.npz'), disp_map)
 
-        if args.save_displacement_map or args.debug:
-            if args.original_resolution:
-                # Up sample the displacement map to the full res
-                LOGGER.info('Scaling displacement map...')
-                trf = np.eye(4)
-                np.fill_diagonal(trf, 1 / zoom_factors)
-                disp_map = resize_displacement_map(disp_map, None, trf, moving_image_header.get_zooms())
-                debug_save_image(disp_map, 'disp_map_1_upsampled', args.outputdir, args.debug)
-                disp_map = pad_displacement_map(disp_map, crop_min, crop_max, image_shape_or)
-                debug_save_image(np.squeeze(disp_map), 'disp_map_2_padded', args.outputdir, args.debug)
-                disp_map = gaussian_filter(disp_map, 5)
-                debug_save_image(np.squeeze(disp_map), 'disp_map_3_smoothed', args.outputdir, args.debug)
-                LOGGER.info('\t... done')
-            if args.debug:
-                np.savez_compressed(os.path.join(args.outputdir, 'displacement_map.npz'), disp_map)
-            else:
-                np.savez_compressed(os.path.join(os.path.join(args.outputdir, 'debug'), 'displacement_map.npz'), disp_map)
-        
-        LOGGER.info(f'Predicted image and displacement map saved in: '.format(args.outputdir))
-        LOGGER.info(f'Displacement map prediction time: {time_disp_map_end - time_disp_map_start} s')
-        LOGGER.info(f'Predicted image time: {time_pred_img_end - time_pred_img_start} s')
+    LOGGER.info(f'Predicted image and displacement map saved in: '.format(args.outputdir))
+    LOGGER.info(f'Displacement map prediction time: {time_disp_map_end - time_disp_map_start} s')
+    LOGGER.info(f'Predicted image time: {time_pred_img_end - time_pred_img_start} s')
 
     del registration_model
     LOGGER.info('Done')

@@ -603,7 +603,7 @@ if __name__ == '__main__':
     import os
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     import tensorflow as tf
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
     import nibabel as nib
     import numpy as np
     from DeepDeformationMapRegistration.utils.operators import min_max_norm

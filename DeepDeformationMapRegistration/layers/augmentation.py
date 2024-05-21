@@ -193,12 +193,12 @@ class AugmentationLayer(kl.Layer):
         return tf.clip_by_value(c + in_img, 0, 1)
 
     def min_max_normalization(self, in_img: tf.Tensor):
-        return tf.div(tf.subtract(in_img, tf.reduce_min(in_img)),
+        return tf.compat.v1.div(tf.subtract(in_img, tf.reduce_min(in_img)),
                       tf.subtract(tf.reduce_max(in_img), tf.reduce_min(in_img)))
 
     def deform_image(self, fix_img: tf.Tensor, fix_segm: tf.Tensor):
         # Get locations where the intensity > 0.0
-        idx_points_in_label = tf.where(tf.greater(fix_img, 0.0))
+        idx_points_in_label = tf.compat.v1.where(tf.greater(fix_img, 0.0))
 
         # Randomly select N points
         # random_idx = tf.random.uniform((self.num_control_points,),
@@ -245,11 +245,11 @@ class AugmentationLayer(kl.Layer):
         mov_img = SpatialTransformer(interp_method='linear', indexing='ij', single_transform=False)([fix_img, disp_map])
         mov_segm = SpatialTransformer(interp_method='nearest', indexing='ij', single_transform=False)([fix_segm, disp_map])
 
-        mov_img = tf.where(tf.is_nan(mov_img), tf.zeros_like(mov_img), mov_img)
-        mov_img = tf.where(tf.is_inf(mov_img), tf.zeros_like(mov_img), mov_img)
+        mov_img = tf.compat.v1.where(tf.math.is_nan(mov_img), tf.zeros_like(mov_img), mov_img)
+        mov_img = tf.compat.v1.where(tf.math.is_inf(mov_img), tf.zeros_like(mov_img), mov_img)
 
-        mov_segm = tf.where(tf.is_nan(mov_segm), tf.zeros_like(mov_segm), mov_segm)
-        mov_segm = tf.where(tf.is_inf(mov_segm), tf.zeros_like(mov_segm), mov_segm)
+        mov_segm = tf.compat.v1.where(tf.math.is_nan(mov_segm), tf.zeros_like(mov_segm), mov_segm)
+        mov_segm = tf.compat.v1.where(tf.math.is_inf(mov_segm), tf.zeros_like(mov_segm), mov_segm)
 
         return tf.squeeze(mov_img), tf.squeeze(mov_segm, axis=0), tf.squeeze(disp_map, axis=0)
 

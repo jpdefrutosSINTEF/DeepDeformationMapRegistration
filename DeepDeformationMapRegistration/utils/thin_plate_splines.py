@@ -66,7 +66,7 @@ class ThinPlateSplines:
         return u_dist # + reg_term
 
     def __pairwise_distance_sq(self, pts_a, pts_b):
-        with tf.variable_scope('pairwise_distance'):
+        with tf.compat.v1.variable_scope('pairwise_distance'):
             if np.all(pts_a == pts_b):
                 # This implementation works better when doing the pairwise distance os a single set of points
                 pts_a_ = tf.reshape(pts_a, [-1, 1, 3])
@@ -140,7 +140,7 @@ class ThinPlateSplines:
 def thin_plate_splines_batch(ctrl_pts: tf.Tensor, target_pts: tf.Tensor, int_pts: tf.Tensor, reg=0.0):
     _batches = ctrl_pts.shape[0]
 
-    if tf.get_default_session() is not None:
+    if tf.compat.v1.get_default_session() is not None:
         print('DEBUG TIME')
 
     def tps_sample(in_data):
